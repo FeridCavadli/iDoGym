@@ -42,6 +42,16 @@ struct WorkoutDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbarBackground(AppColors.background, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    router.navigate(to: .exercisePicker(viewModel.workout))
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundStyle(AppColors.primary)
+                }
+            }
+        }
     }
 }
 

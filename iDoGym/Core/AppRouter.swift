@@ -12,7 +12,7 @@ final class AppRouter {
     enum Destination: Hashable {
         case workoutDetail(Workout)   // məşq detalları
         case activeWorkout(Workout)   // aktiv məşq + taymer
-        case exercisePicker           // məşq seçim ekranı
+        case exercisePicker(Workout)   // hansı workout-a məşq əlavə ediləcək
     }
 
     // Yeni ekrana keç — yığına əlavə et

@@ -14,8 +14,12 @@ struct ContentView: View {
                         WorkoutDetailView(workout: workout, repository: dependencies.workoutRepository)
                     case .activeWorkout(let workout):
                         ActiveWorkoutView(workout: workout, repository: dependencies.workoutRepository)
-                    case .exercisePicker:
-                        Text("Exercise Picker")            // tezliklə ExercisePickerView
+                    case .exercisePicker(let workout):
+                        ExercisePickerView(
+                            workout: workout,
+                            exerciseRepository: dependencies.exerciseRepository,
+                            workoutRepository: dependencies.workoutRepository
+                        )
                     }
                 }
         }
