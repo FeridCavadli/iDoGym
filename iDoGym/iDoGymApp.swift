@@ -1,25 +1,23 @@
-//
-//  iDoGymApp.swift
-//  iDoGym
-//
-//  Created by Ferid on 20.06.26.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct iDoGymApp: App {
+
     var sharedModelContainer: ModelContainer = {
+        // Bütün @Model class-larımızı burada qeydiyyatdan keçiririk
         let schema = Schema([
-            Item.self,
+            Workout.self,
+            ExerciseLog.self,
+            Exercise.self,
+            ExerciseSet.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("ModelContainer yaradıla bilmədi: \(error)")
         }
     }()
 
