@@ -4,8 +4,11 @@ import SwiftData
 @main
 struct iDoGymApp: App {
 
-    var sharedModelContainer: ModelContainer = {
-        // Bütün @Model class-larımızı burada qeydiyyatdan keçiririk
+    private let modelContainer: ModelContainer
+    private let dependencies: DependencyContainer
+    private let router = AppRouter()
+
+    init() {
         let schema = Schema([
             Workout.self,
             ExerciseLog.self,
@@ -15,16 +18,24 @@ struct iDoGymApp: App {
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [config])
+            // 1. SwiftData konteynerini yarat
+            let container = try ModelContainer(for: schema, configurations: [config])
+            self.modelContainer = container
+
+            // 2. ModelContext-i DependencyContainer-a ver
+            // mainContext — əsas (UI) thread-in context-idir
+            self.dependencies = DependencyContainer(modelContext: container.mainContext)
         } catch {
             fatalError("ModelContainer yaradıla bilmədi: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(dependencies)
+                .environment(router)
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(modelContainer)
     }
 }
