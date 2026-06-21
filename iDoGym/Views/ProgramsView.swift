@@ -132,7 +132,7 @@ struct ProgramsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Öz Proqramını Yarat")
+                    Text("Create your own program")
                         .font(AppFonts.headline)
                         .foregroundStyle(.white)
                     Text("Hərəkətlərini özün seç və başla")

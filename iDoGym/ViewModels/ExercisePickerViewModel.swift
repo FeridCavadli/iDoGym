@@ -30,16 +30,23 @@ final class ExercisePickerViewModel {
         } catch { }
     }
 
-    // Seçilən məşqi workout-a əlavə et
-    func addExercise(_ exercise: Exercise, to workout: Workout) async {
+    // Seçilən məşqi konfiqurasiya ilə workout-a əlavə et
+    func addExercise(
+        _ exercise: Exercise,
+        to workout: Workout,
+        sets: Int,
+        reps: Int,
+        weight: Double,
+        restDuration: Int
+    ) async {
         let log = ExerciseLog(order: workout.exercises.count)
         log.exercise = exercise
         log.workout = workout
+        log.restDuration = restDuration
         workout.exercises.append(log)
 
-        // Default olaraq 3 boş set yarat
-        for _ in 0..<3 {
-            let set = ExerciseSet(reps: 10, weight: 0)
+        for _ in 0..<sets {
+            let set = ExerciseSet(reps: reps, weight: weight)
             set.exerciseLog = log
             log.sets.append(set)
         }

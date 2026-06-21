@@ -148,25 +148,31 @@ struct WorkoutDetailView: View {
                 }
             }
 
-            // Set detalları
-            if !log.sets.isEmpty {
-                let displaySets = Array(log.sets.prefix(5))
-                HStack(spacing: AppSpacing.xs) {
-                    ForEach(Array(displaySets.enumerated()), id: \.offset) { i, set in
-                        Text("S\(i+1): \(set.reps)r")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(AppColors.textSecondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background(Color(hex: "#F4F3F8"))
-                            .clipShape(Capsule())
-                    }
-                    if log.sets.count > 5 {
-                        Text("+\(log.sets.count - 5)")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(AppColors.textTertiary)
-                    }
+            // Set detalları + fasilə
+            HStack(spacing: AppSpacing.xs) {
+                if let firstSet = log.sets.first {
+                    let w = firstSet.weight > 0 ? " · \(String(format: "%.0f", firstSet.weight))kg" : ""
+                    Text("\(log.sets.count) × \(firstSet.reps) reps\(w)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(AppColors.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "#F4F3F8"))
+                        .clipShape(Capsule())
                 }
+
+                // Fasilə
+                HStack(spacing: 3) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 10))
+                    Text(restLabel(log.restDuration))
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(AppColors.primary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(AppColors.primary.opacity(0.08))
+                .clipShape(Capsule())
             }
         }
         .padding(AppSpacing.md)
@@ -180,6 +186,10 @@ struct WorkoutDetailView: View {
                 Label("Sil", systemImage: "trash")
             }
         }
+    }
+
+    private func restLabel(_ seconds: Int) -> String {
+        seconds < 60 ? "\(seconds)s" : "\(seconds / 60)m\(seconds % 60 == 0 ? "" : " \(seconds % 60)s")"
     }
 
     // MARK: - Start düyməsi

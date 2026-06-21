@@ -18,7 +18,7 @@ final class ActiveWorkoutViewModel {
     private(set) var currentSetIndex = 0
     private(set) var workPhase: WorkPhase = .working
 
-    var restDuration: TimeInterval = 90  // default 90 saniyə dincəlmə
+    private let defaultRestDuration: TimeInterval = 60
 
     init(workout: Workout, repository: WorkoutRepositoryProtocol) {
         self.workout = workout
@@ -84,7 +84,9 @@ final class ActiveWorkoutViewModel {
 
     func startRest() {
         workPhase = .resting
-        timer.startCountdown(from: restDuration)
+        // Hərəkətin öz fasiləsini istifadə et, olmasa default 60s
+        let duration = TimeInterval(currentExercise?.restDuration ?? Int(defaultRestDuration))
+        timer.startCountdown(from: duration)
     }
 
     // Dincəlmə taymeri bitdikdə (View tərəfindən çağırılır)

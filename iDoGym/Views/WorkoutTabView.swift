@@ -49,10 +49,10 @@ struct WorkoutTabView: View {
                     router.shouldShowCreateWorkout = false
                 }
             }
-            .alert("Yeni Məşq", isPresented: $showingCreate) {
-                TextField("Məşq adı (məs. Chest Day)", text: $newWorkoutName)
-                Button("Ləğv et", role: .cancel) { newWorkoutName = "" }
-                Button("Yarat") {
+            .alert("New program", isPresented: $showingCreate) {
+                TextField("Program name", text: $newWorkoutName)
+                Button("Cancel", role: .cancel) { newWorkoutName = "" }
+                Button("Create") {
                     let name = newWorkoutName.trimmingCharacters(in: .whitespaces)
                     guard !name.isEmpty else { return }
                     Task {
@@ -155,9 +155,11 @@ struct WorkoutTabView: View {
 
             Spacer()
 
-            Image(systemName: workout.isCompleted ? "checkmark.circle.fill" : "chevron.right")
-                .font(.system(size: workout.isCompleted ? 22 : 14))
-                .foregroundStyle(workout.isCompleted ? AppColors.success : AppColors.textTertiary)
+            if workout.isCompleted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(AppColors.success)
+            }
         }
         .padding(AppSpacing.md)
         .background(AppColors.surface)

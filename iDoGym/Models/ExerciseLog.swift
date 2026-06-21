@@ -10,6 +10,8 @@ final class ExerciseLog {
 
     // Workout içindəki sıra (1-ci məşq, 2-ci məşq...)
     var order: Int
+    // Setlər arası fasilə müddəti (saniyə) — ActiveWorkout-da istifadə olunur
+    var restDuration: Int = 60
 
     // Hansı workout-a aiddir
     var workout: Workout?
