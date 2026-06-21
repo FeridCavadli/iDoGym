@@ -35,7 +35,7 @@ struct iDoGymApp: App {
             ContentView()
                 .environment(dependencies)
                 .environment(router)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
         }
         .modelContainer(modelContainer)
     }

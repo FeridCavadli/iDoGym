@@ -15,6 +15,13 @@ enum AppRadius {
     static let sm:   CGFloat = 8
     static let md:   CGFloat = 12
     static let lg:   CGFloat = 16
-    static let xl:   CGFloat = 24
-    static let pill: CGFloat = 100  // tam oval düymə (Image 1-dəki "Just Go" kimi)
+    static let xl:   CGFloat = 20
+    static let pill: CGFloat = 100
+}
+
+// Kart kölgəsi
+extension View {
+    func cardShadow() -> some View {
+        self.shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
 }

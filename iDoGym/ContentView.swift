@@ -2,26 +2,44 @@ import SwiftUI
 
 struct ContentView: View {
 
-    @Environment(AppRouter.self) private var router
-    @Environment(DependencyContainer.self) private var dependencies
+    @State private var selectedTab: Tab = .home
+
+    enum Tab {
+        case home, programs, workout, stats, profile
+    }
 
     var body: some View {
-        NavigationStack(path: Bindable(router).path) {
-            WorkoutListView(repository: dependencies.workoutRepository)
-                .navigationDestination(for: AppRouter.Destination.self) { destination in
-                    switch destination {
-                    case .workoutDetail(let workout):
-                        WorkoutDetailView(workout: workout, repository: dependencies.workoutRepository)
-                    case .activeWorkout(let workout):
-                        ActiveWorkoutView(workout: workout, repository: dependencies.workoutRepository)
-                    case .exercisePicker(let workout):
-                        ExercisePickerView(
-                            workout: workout,
-                            exerciseRepository: dependencies.exerciseRepository,
-                            workoutRepository: dependencies.workoutRepository
-                        )
-                    }
+        TabView(selection: $selectedTab) {
+            HomeDashboardView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
                 }
+                .tag(Tab.home)
+
+            ProgramsView()
+                .tabItem {
+                    Label("Programs", systemImage: "dumbbell.fill")
+                }
+                .tag(Tab.programs)
+
+            ActiveWorkoutView()
+                .tabItem {
+                    Label("Workout", systemImage: "play.circle.fill")
+                }
+                .tag(Tab.workout)
+
+            StatsView()
+                .tabItem {
+                    Label("Stats", systemImage: "chart.bar.fill")
+                }
+                .tag(Tab.stats)
+
+            ProfileView()
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+                .tag(Tab.profile)
         }
+        .tint(AppColors.primary)
     }
 }

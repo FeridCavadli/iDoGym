@@ -1,217 +1,286 @@
 import SwiftUI
+internal import Combine
 
 struct ActiveWorkoutView: View {
 
-    @Environment(AppRouter.self) private var router
-    @State private var viewModel: ActiveWorkoutViewModel
+    @State private var timeRemaining: Int = 45
+    @State private var totalTime: Int = 45
+    @State private var isRunning = false
+    @State private var timerPhase: TimerPhase = .work
+    @State private var currentSet = 3
+    @State private var totalSets = 5
 
-    init(workout: Workout, repository: WorkoutRepositoryProtocol) {
-        _viewModel = State(initialValue: ActiveWorkoutViewModel(workout: workout, repository: repository))
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    enum TimerPhase {
+        case work, rest
+        var label: String { self == .work ? "WORK" : "REST" }
+        var color: Color { self == .work ? AppColors.primary : AppColors.success }
     }
 
-    // Fazaya görə rəng — WORK: qırmızı, REST: teal
-    var accentColor: Color {
-        switch viewModel.workPhase {
-        case .working: return AppColors.timerActive
-        case .resting: return AppColors.timerRest
-        case .done:    return AppColors.success
-        }
+    private var progress: CGFloat {
+        guard totalTime > 0 else { return 0 }
+        return CGFloat(timeRemaining) / CGFloat(totalTime)
+    }
+
+    private var timeString: String {
+        let m = timeRemaining / 60
+        let s = timeRemaining % 60
+        return String(format: "%02d:%02d", m, s)
     }
 
     var body: some View {
         ZStack {
-            AppColors.background.ignoresSafeArea()
+            // Fon
+            Color(hex: "#FAF9FE").ignoresSafeArea()
 
-            VStack(spacing: AppSpacing.xl) {
-                headerBar
-                exerciseInfoSection
+            // Arxa ambient işıq effekti
+            Circle()
+                .fill(AppColors.primary.opacity(0.1))
+                .frame(width: 384, height: 384)
+                .blur(radius: 32)
+
+            VStack(spacing: 0) {
+                // Üst boşluq (custom header üçün)
+                Spacer().frame(height: 56)
+
                 Spacer()
-                timerSection
+
+                // Məşq adı + set sayı
+                VStack(spacing: 6) {
+                    Text("Dumbbell Curls")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(AppColors.textPrimary)
+
+                    HStack(spacing: AppSpacing.sm) {
+                        Circle()
+                            .fill(AppColors.primary)
+                            .frame(width: 8, height: 8)
+                        Text("Set \(currentSet) of \(totalSets)")
+                            .font(AppFonts.captionBold)
+                            .tracking(0.6)
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.vertical, 4)
+                    .background(Color(hex: "#E3E2E7"))
+                    .clipShape(Capsule())
+                }
+                .padding(.bottom, AppSpacing.lg)
+
+                // Taymer dairəsi
+                timerCircle
+                    .padding(.bottom, AppSpacing.lg)
+
+                // Set detalları
+                setDetailsCard
+
                 Spacer()
-                actionSection
+
+                // Alt kontrol footer üçün boşluq
+                Spacer().frame(height: 160)
             }
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.lg)
+
+            // Custom üst header
+            VStack {
+                topBar
+                Spacer()
+                bottomControls
+            }
+            .ignoresSafeArea(edges: .bottom)
         }
-        // Naviqasiya barını gizlət — tam ekran taymer təcrübəsi
-        .toolbar(.hidden, for: .navigationBar)
-        // Dincəlmə taymeri bitdikdə növbəti seti başlat
-        .onChange(of: viewModel.timer.phase) { _, newPhase in
-            if newPhase == .finished && viewModel.workPhase == .resting {
-                viewModel.onRestFinished()
+        .onReceive(timer) { _ in
+            guard isRunning else { return }
+            if timeRemaining > 0 {
+                timeRemaining -= 1
+            } else {
+                isRunning = false
             }
         }
     }
 
-    // MARK: - Header
+    // MARK: - Top Bar
 
-    private var headerBar: some View {
+    private var topBar: some View {
         HStack {
-            // Geri düyməsi
-            Button {
-                viewModel.timer.stop()
-                router.goBack()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(AppFonts.headline)
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColors.primary)
+                Text("iDoGym")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(AppColors.primary)
+            }
+
+            Spacer()
+
+            HStack(spacing: AppSpacing.md) {
+                statLabel(title: "ELAPSED", value: "14:22")
+                statLabel(title: "KCAL", value: "128")
+            }
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .frame(height: 56)
+        .background(.ultraThinMaterial)
+    }
+
+    private func statLabel(title: String, value: String) -> some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Text(title)
+                .font(AppFonts.captionBold)
+                .tracking(0.6)
+                .foregroundStyle(AppColors.textPrimary.opacity(0.7))
+            Text(value)
+                .font(AppFonts.captionBold)
+                .tracking(0.6)
+                .foregroundStyle(AppColors.textPrimary)
+        }
+    }
+
+    // MARK: - Timer Circle
+
+    private var timerCircle: some View {
+        ZStack {
+            // Boz arxa halqa
+            Circle()
+                .stroke(Color(hex: "#E3E2E7"), lineWidth: 12)
+                .frame(width: 260, height: 260)
+
+            // Mavi irəliləmə halqası
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    timerPhase.color,
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
+                .frame(width: 260, height: 260)
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 1), value: progress)
+
+            // Ağ daxili dairə
+            Circle()
+                .fill(Color.white)
+                .frame(width: 240, height: 240)
+                .shadow(color: .black.opacity(0.05), radius: 6, y: 4)
+
+            // Taymer mətni
+            VStack(spacing: 4) {
+                Text(timeString)
+                    .font(.system(size: 48, weight: .bold, design: .monospaced))
+                    .foregroundStyle(AppColors.textPrimary)
+                    .tracking(-2.4)
+
+                Text(timerPhase.label)
+                    .font(AppFonts.captionBold)
+                    .tracking(0.6)
+                    .foregroundStyle(timerPhase.color)
+            }
+        }
+    }
+
+    // MARK: - Set Details
+
+    private var setDetailsCard: some View {
+        HStack(spacing: AppSpacing.xl) {
+            setDetailItem(label: "Target Reps", value: "12")
+
+            Rectangle()
+                .fill(Color(hex: "#C1C6D7"))
+                .frame(width: 1)
+                .frame(height: 40)
+
+            setDetailItem(label: "Weight (lbs)", value: "35")
+        }
+        .padding(AppSpacing.md)
+        .background(Color(hex: "#F4F3F8"))
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
+        .cardShadow()
+        .padding(.horizontal, AppSpacing.md)
+    }
+
+    private func setDetailItem(label: String, value: String) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(AppFonts.captionBold)
+                .tracking(0.6)
+                .foregroundStyle(AppColors.textSecondary)
+            Text(value)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppColors.textPrimary)
+        }
+    }
+
+    // MARK: - Bottom Controls
+
+    private var bottomControls: some View {
+        VStack(spacing: 0) {
+            // Next Up
+            HStack {
+                Text("Next Up:")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(AppColors.textSecondary)
+                Spacer()
+                Text("Bench Press (4×10)")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppColors.textPrimary)
             }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.md)
+            .background(Color(hex: "#E9E7ED"))
 
-            Spacer()
-
-            // Faza göstəricisi: WORK / REST
-            Text(viewModel.workPhase == .resting ? "REST" : "WORK")
-                .font(AppFonts.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(accentColor)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.xs)
-                .background(accentColor.opacity(0.15))
-                .cornerRadius(AppRadius.pill)
-
-            Spacer()
-
-            // Bitir düyməsi
-            Button("Finish") {
-                viewModel.timer.stop()
-                router.goToRoot()
-            }
-            .font(AppFonts.subheadline)
-            .foregroundStyle(AppColors.textSecondary)
-        }
-    }
-
-    // MARK: - Məşq məlumatı
-
-    private var exerciseInfoSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            // "Set 1 of 3 · 2/4 Exercise"
-            HStack(spacing: AppSpacing.sm) {
-                Text(viewModel.setProgress)
-                Text("·")
-                Text("Exercise \(viewModel.exerciseProgress)")
-            }
-            .font(AppFonts.subheadline)
-            .foregroundStyle(AppColors.textSecondary)
-
-            // Məşq adı
-            Text(viewModel.currentExercise?.exercise?.name ?? "Exercise")
-                .font(AppFonts.title)
-                .foregroundStyle(AppColors.textPrimary)
-
-            // Çəki və təkrar
-            if let set = viewModel.currentSet {
-                HStack(spacing: AppSpacing.lg) {
-                    Label("\(Int(set.weight)) kg", systemImage: "scalemass.fill")
-                    Label("\(set.reps) reps", systemImage: "arrow.counterclockwise")
+            // 3 düymə
+            HStack(spacing: AppSpacing.md) {
+                // Pause
+                Button {
+                    isRunning.toggle()
+                } label: {
+                    Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppColors.textPrimary)
+                        .frame(width: 64, height: 64)
+                        .background(Color(hex: "#E3E2E7"))
+                        .clipShape(Circle())
                 }
-                .font(AppFonts.subheadline)
-                .foregroundStyle(AppColors.textSecondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
 
-    // MARK: - Taymer
-
-    private var timerSection: some View {
-        VStack(spacing: AppSpacing.lg) {
-
-            // LED-üslublu rəqəmsal taymer
-            Text(viewModel.timer.displayTime)
-                .font(AppFonts.timerLarge)
-                .foregroundStyle(accentColor)
-                // LED glow effekti
-                .shadow(color: accentColor.opacity(0.6), radius: 20, x: 0, y: 0)
-                .shadow(color: accentColor.opacity(0.3), radius: 40, x: 0, y: 0)
-                .monospacedDigit()
-                .padding(AppSpacing.xxl)
-                .background(
-                    RoundedRectangle(cornerRadius: AppRadius.xl)
-                        .fill(AppColors.surface)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppRadius.xl)
-                                .stroke(accentColor.opacity(0.2), lineWidth: 1)
-                        )
-                )
-
-            // Dincəlmə zamanı +/- düymələri (Image 1-dəki minus/plus)
-            if viewModel.workPhase == .resting {
-                HStack(spacing: AppSpacing.xl) {
-                    Button {
-                        viewModel.timer.addTime(-15)
-                    } label: {
-                        Image(systemName: "minus")
-                            .font(AppFonts.title2)
-                            .foregroundStyle(AppColors.textSecondary)
-                            .frame(width: 48, height: 48)
-                            .background(AppColors.surface)
-                            .cornerRadius(AppRadius.pill)
+                // Log Set
+                Button {
+                    // Set qeyd et
+                } label: {
+                    HStack(spacing: AppSpacing.sm) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                        Text("Log Set")
+                            .font(.system(size: 16))
                     }
-
-                    Text("Rest Time")
-                        .font(AppFonts.caption)
-                        .foregroundStyle(AppColors.textSecondary)
-
-                    Button {
-                        viewModel.timer.addTime(15)
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(AppFonts.title2)
-                            .foregroundStyle(AppColors.textSecondary)
-                            .frame(width: 48, height: 48)
-                            .background(AppColors.surface)
-                            .cornerRadius(AppRadius.pill)
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Alt düymə
-
-    @ViewBuilder
-    private var actionSection: some View {
-        switch viewModel.workPhase {
-
-        case .working:
-            Button {
-                Task { await viewModel.completeCurrentSet() }
-            } label: {
-                Text("Complete Set")
-                    .font(AppFonts.headline)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(AppSpacing.md)
+                    .frame(height: 50)
                     .background(AppColors.primary)
-                    .cornerRadius(AppRadius.pill)
-            }
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+                }
 
-        case .resting:
-            Button {
-                viewModel.skipRest()
-            } label: {
-                Text("Skip Rest")
-                    .font(AppFonts.headline)
-                    .foregroundStyle(AppColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(AppSpacing.md)
-                    .background(AppColors.surfaceSecondary)
-                    .cornerRadius(AppRadius.pill)
+                // Skip
+                Button {
+                    // Növbəti set
+                } label: {
+                    Image(systemName: "forward.end.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppColors.textPrimary)
+                        .frame(width: 64, height: 64)
+                        .background(Color(hex: "#E3E2E7"))
+                        .clipShape(Circle())
+                }
             }
-
-        case .done:
-            Button {
-                router.goToRoot()
-            } label: {
-                Text("Workout Complete!")
-                    .font(AppFonts.headline)
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(AppSpacing.md)
-                    .background(AppColors.success)
-                    .cornerRadius(AppRadius.pill)
-            }
+            .padding(AppSpacing.md)
+        }
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Divider()
         }
     }
+}
+
+#Preview {
+    ActiveWorkoutView()
 }
