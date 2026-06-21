@@ -37,4 +37,9 @@ final class WorkoutDetailViewModel {
         log.sets.removeAll { $0.id == set.id }
         try? await repository.save(workout)
     }
+
+    func removeExercise(_ log: ExerciseLog) async {
+        workout.exercises.removeAll { $0.id == log.id }
+        try? await repository.save(workout)
+    }
 }

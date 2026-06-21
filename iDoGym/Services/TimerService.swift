@@ -14,7 +14,7 @@ final class TimerService {
     private(set) var elapsed: TimeInterval = 0    // keçən vaxt
     private(set) var remaining: TimeInterval = 0  // qalan vaxt (countdown-da)
 
-    private var totalDuration: TimeInterval = 0
+    private(set) var totalDuration: TimeInterval = 0
     private var isCountdown = false
     private var timer: Timer?
 

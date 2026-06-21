@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProgramsView: View {
 
+    @Environment(AppRouter.self) private var router
     @State private var selectedFilter = "All Programs"
 
     private let filters = ["All Programs", "Weight Loss", "Muscle Gain", "Beginner", "Pro"]
@@ -62,6 +63,11 @@ struct ProgramsView: View {
                     .padding(.horizontal, AppSpacing.md)
                     .padding(.bottom, AppSpacing.lg)
 
+                    // Öz proqramını yarat banner
+                    createOwnBanner
+                        .padding(.horizontal, AppSpacing.md)
+                        .padding(.bottom, AppSpacing.sm)
+
                     // Filter chips
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: AppSpacing.sm) {
@@ -105,6 +111,45 @@ struct ProgramsView: View {
                         .foregroundStyle(AppColors.textSecondary)
                 }
             }
+        }
+    }
+
+        // MARK: - Create Own Banner
+
+    private var createOwnBanner: some View {
+        Button {
+            router.selectedTab = .workout
+            router.shouldShowCreateWorkout = true
+        } label: {
+            HStack(spacing: AppSpacing.md) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Öz Proqramını Yarat")
+                        .font(AppFonts.headline)
+                        .foregroundStyle(.white)
+                    Text("Hərəkətlərini özün seç və başla")
+                        .font(AppFonts.caption)
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(AppSpacing.md)
+            .background(AppColors.primary)
+            .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
+            .shadow(color: AppColors.primary.opacity(0.3), radius: 8, y: 4)
         }
     }
 
@@ -226,4 +271,5 @@ struct ProgramItem: Identifiable {
 
 #Preview {
     ProgramsView()
+        .environment(AppRouter())
 }

@@ -1,6 +1,24 @@
 import SwiftUI
 
 struct HomeDashboardView: View {
+
+    @State private var viewModel: WorkoutListViewModel
+
+    init(repository: WorkoutRepositoryProtocol) {
+        _viewModel = State(wrappedValue: WorkoutListViewModel(repository: repository))
+    }
+
+    // Növbəti tamamlanmamış məşq
+    private var nextWorkout: Workout? {
+        viewModel.workouts.first { !$0.isCompleted }
+    }
+
+    // Bu həftə tamamlanan məşq sayı
+    private var weeklyWorkoutCount: Int {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        return viewModel.workouts.filter { $0.isCompleted && $0.date >= weekAgo }.count
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -15,6 +33,7 @@ struct HomeDashboardView: View {
                 .padding(.bottom, AppSpacing.xl)
             }
             .background(AppColors.background)
+            .task { await viewModel.loadWorkouts() }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Circle()
@@ -56,7 +75,6 @@ struct HomeDashboardView: View {
 
     private var nextSessionCard: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Dekorativ arxa dairə
             Circle()
                 .fill(Color.white.opacity(0.1))
                 .frame(width: 160, height: 160)
@@ -64,7 +82,6 @@ struct HomeDashboardView: View {
                 .offset(x: 32, y: 32)
 
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                // "NEXT SESSION" etiketi
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 18))
@@ -75,14 +92,30 @@ struct HomeDashboardView: View {
                         .tracking(0.6)
                 }
 
-                Text("Full Body Power")
-                    .font(AppFonts.body)
-                    .foregroundStyle(.white)
-                    .padding(.top, AppSpacing.sm)
+                if let workout = nextWorkout {
+                    Text(workout.name)
+                        .font(AppFonts.body)
+                        .foregroundStyle(.white)
+                        .padding(.top, AppSpacing.sm)
 
-                Text("45 Min • High Intensity")
-                    .font(AppFonts.body)
-                    .foregroundStyle(.white.opacity(0.9))
+                    Text(workout.notes.isEmpty ? "Workout ready" : workout.notes)
+                        .font(AppFonts.subheadline)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                } else if viewModel.isLoading {
+                    Text("Yüklənir...")
+                        .font(AppFonts.body)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.top, AppSpacing.sm)
+                } else {
+                    Text("Məşq əlavə et")
+                        .font(AppFonts.body)
+                        .foregroundStyle(.white)
+                        .padding(.top, AppSpacing.sm)
+                    Text("Workout tabına keç →")
+                        .font(AppFonts.subheadline)
+                        .foregroundStyle(.white.opacity(0.9))
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(AppSpacing.lg)
@@ -302,5 +335,16 @@ struct HomeDashboardView: View {
 }
 
 #Preview {
-    HomeDashboardView()
+    HomeDashboardView(repository: PreviewHomeRepository())
+}
+
+private class PreviewHomeRepository: WorkoutRepositoryProtocol {
+    func fetchAll() async throws -> [Workout] {
+        let w1 = Workout(name: "Push Day")
+        let w2 = Workout(name: "Leg Day")
+        w2.isCompleted = true
+        return [w1, w2]
+    }
+    func save(_ workout: Workout) async throws {}
+    func delete(_ workout: Workout) async throws {}
 }

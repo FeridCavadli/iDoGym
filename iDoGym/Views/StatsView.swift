@@ -2,8 +2,29 @@ import SwiftUI
 
 struct StatsView: View {
 
+    @State private var viewModel: WorkoutListViewModel
     @State private var selectedPeriod = "Monthly"
     private let periods = ["Weekly", "Monthly"]
+
+    init(repository: WorkoutRepositoryProtocol) {
+        _viewModel = State(wrappedValue: WorkoutListViewModel(repository: repository))
+    }
+
+    private var totalWorkouts: Int { viewModel.workouts.count }
+    private var completedWorkouts: Int { viewModel.workouts.filter(\.isCompleted).count }
+    private var streakDays: Int {
+        // Ardıcıl gün sayı — sadə hesablama
+        var streak = 0
+        var day = Calendar.current.startOfDay(for: Date())
+        for _ in 0..<30 {
+            let hasWorkout = viewModel.workouts.contains {
+                Calendar.current.isDate($0.date, inSameDayAs: day) && $0.isCompleted
+            }
+            if hasWorkout { streak += 1 } else if streak > 0 { break }
+            day = Calendar.current.date(byAdding: .day, value: -1, to: day) ?? day
+        }
+        return streak
+    }
 
     private let days = ["S", "M", "T", "W", "T", "F", "S"]
     private let barHeights: [CGFloat] = [70, 105, 52, 140, 87, 122, 78]
@@ -25,6 +46,7 @@ struct StatsView: View {
             .background(AppColors.background)
             .navigationTitle("Stats")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await viewModel.loadWorkouts() }
         }
     }
 
@@ -52,7 +74,7 @@ struct StatsView: View {
                     iconColor: Color(hex: "#8C5000"),
                     glowColor: Color(hex: "#8C5000").opacity(0.1),
                     label: "STREAK",
-                    value: "12",
+                    value: "\(streakDays)",
                     unit: "days"
                 )
                 smallMetricCard(
@@ -60,7 +82,7 @@ struct StatsView: View {
                     iconColor: AppColors.primary,
                     glowColor: AppColors.primary.opacity(0.1),
                     label: "WORKOUTS",
-                    value: "48",
+                    value: "\(totalWorkouts)",
                     unit: "total"
                 )
             }
@@ -378,5 +400,16 @@ struct StatsView: View {
 }
 
 #Preview {
-    StatsView()
+    StatsView(repository: PreviewStatsRepository())
+}
+
+private class PreviewStatsRepository: WorkoutRepositoryProtocol {
+    func fetchAll() async throws -> [Workout] {
+        let w1 = Workout(name: "Push Day"); w1.isCompleted = true
+        let w2 = Workout(name: "Pull Day"); w2.isCompleted = true
+        let w3 = Workout(name: "Leg Day")
+        return [w1, w2, w3]
+    }
+    func save(_ workout: Workout) async throws {}
+    func delete(_ workout: Workout) async throws {}
 }

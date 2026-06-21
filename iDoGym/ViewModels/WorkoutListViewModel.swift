@@ -9,7 +9,7 @@ final class WorkoutListViewModel {
     var errorMessage: String?
 
     // Protokol tipi — SwiftData-dan xəbərsizdir
-    private let repository: WorkoutRepositoryProtocol
+    let repository: WorkoutRepositoryProtocol
 
     init(repository: WorkoutRepositoryProtocol) {
         self.repository = repository

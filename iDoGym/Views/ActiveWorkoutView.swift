@@ -1,16 +1,9 @@
 import SwiftUI
-internal import Combine
 
 struct ActiveWorkoutView: View {
 
-    @State private var timeRemaining: Int = 45
-    @State private var totalTime: Int = 45
-    @State private var isRunning = false
-    @State private var timerPhase: TimerPhase = .work
-    @State private var currentSet = 3
-    @State private var totalSets = 5
-
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: ActiveWorkoutViewModel
 
     enum TimerPhase {
         case work, rest
@@ -18,15 +11,54 @@ struct ActiveWorkoutView: View {
         var color: Color { self == .work ? AppColors.primary : AppColors.success }
     }
 
+    init(workout: Workout, repository: WorkoutRepositoryProtocol) {
+        _viewModel = State(wrappedValue: ActiveWorkoutViewModel(workout: workout, repository: repository))
+    }
+
+    // ViewModel-dən gələn real məlumatlar
+    private var exerciseName: String {
+        viewModel.currentExercise?.exercise?.name ?? viewModel.workout.name
+    }
+
+    private var setProgress: String { viewModel.setProgress }
+
+    private var targetReps: String {
+        if let reps = viewModel.currentSet?.reps { return "\(reps)" }
+        return "--"
+    }
+
+    private var targetWeight: String {
+        if let w = viewModel.currentSet?.weight, w > 0 { return String(format: "%.0f", w) }
+        return "--"
+    }
+
+    private var nextUpText: String {
+        // Növbəti məşqi göstər
+        let exercises = viewModel.workout.exercises.sorted { $0.order < $1.order }
+        let nextIdx = viewModel.currentExerciseIndex + 1
+        if nextIdx < exercises.count, let name = exercises[nextIdx].exercise?.name {
+            return name
+        }
+        return "Son set"
+    }
+
+    private var timerPhase: TimerPhase {
+        viewModel.workPhase == .resting ? .rest : .work
+    }
+
     private var progress: CGFloat {
-        guard totalTime > 0 else { return 0 }
-        return CGFloat(timeRemaining) / CGFloat(totalTime)
+        if timerPhase == .rest {
+            let total = viewModel.timer.totalDuration
+            guard total > 0 else { return 1 }
+            return CGFloat(viewModel.timer.remaining / total)
+        }
+        return 1.0
     }
 
     private var timeString: String {
-        let m = timeRemaining / 60
-        let s = timeRemaining % 60
-        return String(format: "%02d:%02d", m, s)
+        // Dincəlmədə: TimerService-dən remaining, işdə: elapsed
+        let t = Int(timerPhase == .rest ? viewModel.timer.remaining : viewModel.timer.elapsed)
+        return String(format: "%02d:%02d", t / 60, t % 60)
     }
 
     var body: some View {
@@ -48,15 +80,16 @@ struct ActiveWorkoutView: View {
 
                 // Məşq adı + set sayı
                 VStack(spacing: 6) {
-                    Text("Dumbbell Curls")
+                    Text(exerciseName)
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(AppColors.textPrimary)
+                        .multilineTextAlignment(.center)
 
                     HStack(spacing: AppSpacing.sm) {
                         Circle()
                             .fill(AppColors.primary)
                             .frame(width: 8, height: 8)
-                        Text("Set \(currentSet) of \(totalSets)")
+                        Text(setProgress)
                             .font(AppFonts.captionBold)
                             .tracking(0.6)
                             .foregroundStyle(AppColors.textSecondary)
@@ -89,13 +122,15 @@ struct ActiveWorkoutView: View {
             }
             .ignoresSafeArea(edges: .bottom)
         }
-        .onReceive(timer) { _ in
-            guard isRunning else { return }
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                isRunning = false
+        // Dincəlmə taymeri bitdikdə
+        .onChange(of: viewModel.timer.phase) { _, phase in
+            if phase == .finished {
+                viewModel.onRestFinished()
             }
+        }
+        // Məşq bitdikdə ekranı bağla
+        .onChange(of: viewModel.workPhase) { _, phase in
+            if phase == .done { dismiss() }
         }
     }
 
@@ -103,20 +138,25 @@ struct ActiveWorkoutView: View {
 
     private var topBar: some View {
         HStack {
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppColors.primary)
-                Text("iDoGym")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(AppColors.primary)
+            Button {
+                viewModel.timer.stop()
+                dismiss()
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppColors.primary)
+                    Text("iDoGym")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(AppColors.primary)
+                }
             }
 
             Spacer()
 
             HStack(spacing: AppSpacing.md) {
-                statLabel(title: "ELAPSED", value: "14:22")
-                statLabel(title: "KCAL", value: "128")
+                statLabel(title: "ELAPSED", value: TimerService.format(viewModel.timer.elapsed))
+                statLabel(title: "SETS", value: "\(viewModel.workout.completedSets)")
             }
         }
         .padding(.horizontal, AppSpacing.md)
@@ -182,14 +222,14 @@ struct ActiveWorkoutView: View {
 
     private var setDetailsCard: some View {
         HStack(spacing: AppSpacing.xl) {
-            setDetailItem(label: "Target Reps", value: "12")
+            setDetailItem(label: "Target Reps", value: targetReps)
 
             Rectangle()
                 .fill(Color(hex: "#C1C6D7"))
                 .frame(width: 1)
                 .frame(height: 40)
 
-            setDetailItem(label: "Weight (lbs)", value: "35")
+            setDetailItem(label: "Weight (kg)", value: targetWeight)
         }
         .padding(AppSpacing.md)
         .background(Color(hex: "#F4F3F8"))
@@ -220,7 +260,7 @@ struct ActiveWorkoutView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(AppColors.textSecondary)
                 Spacer()
-                Text("Bench Press (4×10)")
+                Text(nextUpText)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(AppColors.textPrimary)
             }
@@ -230,11 +270,15 @@ struct ActiveWorkoutView: View {
 
             // 3 düymə
             HStack(spacing: AppSpacing.md) {
-                // Pause
+                // Pause / Resume
                 Button {
-                    isRunning.toggle()
+                    if viewModel.timer.phase == .running {
+                        viewModel.timer.pause()
+                    } else {
+                        viewModel.timer.resume()
+                    }
                 } label: {
-                    Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                    Image(systemName: viewModel.timer.phase == .running ? "pause.fill" : "play.fill")
                         .font(.system(size: 18))
                         .foregroundStyle(AppColors.textPrimary)
                         .frame(width: 64, height: 64)
@@ -244,7 +288,7 @@ struct ActiveWorkoutView: View {
 
                 // Log Set
                 Button {
-                    // Set qeyd et
+                    Task { await viewModel.completeCurrentSet() }
                 } label: {
                     HStack(spacing: AppSpacing.sm) {
                         Image(systemName: "checkmark.circle.fill")
@@ -260,9 +304,9 @@ struct ActiveWorkoutView: View {
                     .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
                 }
 
-                // Skip
+                // Skip rest
                 Button {
-                    // Növbəti set
+                    viewModel.skipRest()
                 } label: {
                     Image(systemName: "forward.end.fill")
                         .font(.system(size: 16))
@@ -282,5 +326,15 @@ struct ActiveWorkoutView: View {
 }
 
 #Preview {
-    ActiveWorkoutView()
+    let workout = Workout(name: "Push Day")
+    return ActiveWorkoutView(
+        workout: workout,
+        repository: PreviewWorkoutRepo()
+    )
+}
+
+private class PreviewWorkoutRepo: WorkoutRepositoryProtocol {
+    func fetchAll() async throws -> [Workout] { [] }
+    func save(_ workout: Workout) async throws {}
+    func delete(_ workout: Workout) async throws {}
 }
